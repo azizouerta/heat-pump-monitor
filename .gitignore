@@ -1,0 +1,7 @@
+heat_pump_env/
+__pycache__/
+*.pyc
+.DS_Store
+heat_pump_data.db
+heat_pump_data.csv
+
