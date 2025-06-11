@@ -2,6 +2,8 @@ from pymodbus.client import ModbusTcpClient
 import time
 import logging
 import sqlite3
+import paho.mqtt.client as mqtt
+import json
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -13,6 +15,16 @@ DB_NAME = "heat_pump_data.db"
 POWER_REGISTER = 100
 SCALE_TEMP = 10
 SCALE_POWER = 100
+MQTT_BROKER = "localhost"
+MQTT_PORT = 1883
+MQTT_TOPIC = "heatpump/status"
+
+mqtt_client = mqtt.Client()
+def on_connect(client, userdata, flags, rc):
+    logger.info("MQTT connected" if rc == 0 else f"MQTT failed: {rc}")
+mqtt_client.on_connect = on_connect
+mqtt_client.connect(MQTT_BROKER, MQTT_PORT)
+mqtt_client.loop_start()
 
 def init_db():
     try:
@@ -66,11 +78,19 @@ def log_data(data):
     finally:
         conn.close()
 
+def publish_mqtt(data):
+    try:
+        mqtt_client.publish(MQTT_TOPIC, json.dumps(data), qos=1)
+        logger.info(f"Published to {MQTT_TOPIC}: {data}")
+    except Exception as e:
+        logger.error(f"MQTT error: {e}")
+
 if __name__ == "__main__":
     init_db()
     while True:
         data = poll_data()
         if data:
             log_data(data)
+            publish_mqtt(data)
         print(data)
         time.sleep(5)
